@@ -1,0 +1,204 @@
+{
+  "format": "readfirst/map@1",
+  "groups": [
+    {
+      "id": "lib",
+      "title": "Express core: app factory, application settings, request/response helpers, view lookup",
+      "files": [
+        "lib/**",
+        "index.js"
+      ],
+      "checks": [
+        {
+          "run": "npm test"
+        },
+        {
+          "run": "npm run lint"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Request and response helpers are prototypes mixed onto each app; app.request/app.response get a per-app `app` property, so helpers must reach settings through this.app, not globals",
+          "files": [
+            "lib/express.js"
+          ]
+        },
+        {
+          "text": "Proxy-derived request values (protocol, ip, hostname) are only honoured when the 'trust proxy fn' setting trusts the socket address; changing trust handling can allow header spoofing",
+          "files": [
+            "lib/request.js"
+          ]
+        },
+        {
+          "text": "Sub-app mounting deletes the child's default trust proxy settings so it inherits from the parent; this depends on a hidden symbol flag",
+          "files": [
+            "lib/application.js"
+          ]
+        },
+        {
+          "text": "res.sendFile throws unless the path is absolute or opts.root is given, and dotfiles are denied by default; relaxing this exposes files from user-supplied paths",
+          "files": [
+            "lib/response.js"
+          ]
+        },
+        {
+          "text": "Redirect/Location values go through encodeUrl and escapeHtml (for the HTML body); bypassing them opens header or XSS injection",
+          "files": [
+            "lib/response.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tests",
+      "title": "Mocha test suite and acceptance tests that exercise lib/ and examples/",
+      "files": [
+        "test/**"
+      ],
+      "checks": [
+        {
+          "run": "npm test"
+        },
+        {
+          "run": "npm run test-tap"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Tests run with --check-leaks, so any accidental global variable fails the run",
+          "files": [
+            "package.json"
+          ]
+        },
+        {
+          "text": "test/support/env.js sets NODE_ENV=test and silences express/body-parser deprecations; it must be required or settings like view cache and logging change",
+          "files": [
+            "test/support/env.js"
+          ]
+        },
+        {
+          "text": "test/acceptance/ runs the examples through the real app, so editing an example can break npm test",
+          "files": [
+            "test/acceptance/auth.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "examples",
+      "title": "Runnable sample apps, one folder each, indexed in examples/README.md",
+      "files": [
+        "examples/**"
+      ],
+      "checks": [
+        {
+          "run": "npm test"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Each example is exercised by test/acceptance, so changing its routes or output breaks tests",
+          "files": [
+            "test/acceptance/auth.js"
+          ]
+        },
+        {
+          "text": "Examples are listed in examples/README.md; keep the index in step when adding or removing one",
+          "files": [
+            "examples/README.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "title": "CI, CodeQL, scorecard, legacy and npm publish workflows plus dependabot",
+      "files": [
+        ".github/**"
+      ],
+      "checks": [],
+      "risks": [
+        {
+          "text": "ci.yml tests Node 18-26 on Linux and Windows, so path handling must work on both",
+          "files": [
+            ".github/workflows/ci.yml"
+          ]
+        },
+        {
+          "text": "Actions are pinned to commit SHAs with read-only permissions; keep pins when updating",
+          "files": [
+            ".github/workflows/ci.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "root",
+      "title": "Package manifest, lint and npm config, docs and licence",
+      "files": [
+        ".editorconfig",
+        ".eslintignore",
+        ".eslintrc.yml",
+        ".gitignore",
+        ".npmrc",
+        "History.md",
+        "LICENSE",
+        "Readme.md",
+        "package.json"
+      ],
+      "checks": [
+        {
+          "run": "npm run lint"
+        },
+        {
+          "run": "npm test"
+        }
+      ],
+      "risks": [
+        {
+          "text": ".npmrc sets ignore-scripts, a 7-day min-release-age and no lockfile (package-lock=false); installs are intentionally unlocked and script-free",
+          "files": [
+            ".npmrc"
+          ]
+        },
+        {
+          "text": "package.json scripts are the only entry points for lint and tests; CI calls npm run lint and npm run test-ci",
+          "files": [
+            ".github/workflows/ci.yml"
+          ]
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "trust-proxy",
+      "rule": "Never read X-Forwarded-* headers without checking the trust proxy function.",
+      "files": [
+        "lib/request.js"
+      ]
+    },
+    {
+      "id": "sendfile-root",
+      "rule": "res.sendFile must keep rejecting relative paths without a root option.",
+      "files": [
+        "lib/response.js"
+      ]
+    },
+    {
+      "id": "redirect-encode",
+      "rule": "Location headers must pass through encodeUrl and HTML bodies through escapeHtml.",
+      "files": [
+        "lib/response.js"
+      ]
+    },
+    {
+      "id": "node-18",
+      "rule": "Code must keep working on every Node.js version allowed by engines (>= 18).",
+      "files": [
+        "lib/**"
+      ]
+    }
+  ],
+  "ignore": []
+}
